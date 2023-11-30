@@ -1,4 +1,3 @@
-#[derive(Copy, Clone)]
 enum Choice {
     ROCK,
     PAPER,
@@ -8,10 +7,18 @@ enum Choice {
 impl Choice {
     pub fn parse(raw: &str) -> Result<Self, &str> {
         match raw {
-            "A" | "X" => Ok(Choice::ROCK),
-            "B" | "Y" => Ok(Choice::PAPER),
-            "C" | "Z" => Ok(Choice::SCISSORS),
+            "A" => Ok(Choice::ROCK),
+            "B" => Ok(Choice::PAPER),
+            "C" => Ok(Choice::SCISSORS),
             _ => Err("Invalid choice provided")
+        }
+    }
+    pub fn from_val(val: i64) -> Option<Choice> {
+        match val {
+            1 => Some(Choice::ROCK),
+            2 => Some(Choice::PAPER),
+            3 => Some(Choice::SCISSORS),
+            _ => None
         }
     }
     pub fn val(&self) -> i64 {
@@ -21,13 +28,12 @@ impl Choice {
             Choice::SCISSORS => 3,
         }
     }
-    pub fn play(&self, other: &Self) -> Result<i64, &str> {
-        match &self.val() - other.val() {
-            -1 | 2 => Ok(0),
-            0 => Ok(3),
-            -2 | 1 => Ok(6),
-            _ => Err("Failed to play")
-        }
+    pub fn appropriate_move(&self, instr: &Instruction) -> Self {
+        Choice::from_val(match self.val() + instr.adjustment() {
+            4 => 1,
+            0 => 3,
+            x => x,
+        }).unwrap()
     }
 }
 
@@ -46,14 +52,28 @@ impl Instruction {
             _ => Err("Invalid instruction")
         }
     }
+    pub fn adjustment(&self) -> i64 {
+        match &self {
+            Instruction::LOSE => -1,
+            Instruction::TIE => 0,
+            Instruction::WIN => 1,
+        }
+    }
+    pub fn val(&self) -> i64 {
+        match &self {
+            Instruction::LOSE => 0,
+            Instruction::TIE => 3,
+            Instruction::WIN => 6,
+        }
+    }
 }
 
 fn main() {
     let input = include_str!("../../input.txt");
     let result = input
         .lines()
-        .map(|line| line.split(" "))
-        .map(|[raw_opp, raw_res]| (Choice::parse(raw_opp)))
-        .fold(0, |acc, (opp, me)| acc + me.play(&opp).unwrap() + me.val());
+        .map(|line| {let splits: Vec<&str> = line.split(" ").collect(); (splits[0], splits[1])})
+        .map(|(raw_opp, raw_res)| (Choice::parse(raw_opp).unwrap(), Instruction::parse(raw_res).unwrap()))
+        .fold(0, |acc, (opp_move, instr)| acc + opp_move.appropriate_move(&instr).val() + instr.val());
     println!("Score: {}", result);
 }
